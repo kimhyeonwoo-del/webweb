@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 밸런스 게임 - 실시간 투표</title>
+    <title>AI 밸런스 게임 - 주제별 모음</title>
     <link href="https://hangeul.pstatic.net/hangeul_static/css/nanum-square.css" rel="stylesheet">
     <style>
-        /* 스타일은 아까와 동일하지만 조금 더 다듬음 */
+        /* 기본 스타일 (이전과 동일) */
         body {
             background-color: #121212;
             color: #ffffff;
@@ -19,12 +19,48 @@
             background: linear-gradient(135deg, #ff0055, #0055ff);
             margin-bottom: 30px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            position: relative;
         }
-        h1 { margin: 0; font-size: 1.8rem; font-weight: 800; font-style: italic; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        h1 { margin: 0; font-size: 1.8rem; font-weight: 800; font-style: italic; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); cursor: pointer;}
         p.subtitle { margin-top: 8px; font-size: 1rem; opacity: 0.9; }
 
         .container { max-width: 600px; margin: 0 auto; padding: 0 15px; }
 
+        /* --- [NEW] 홈 화면: 게임 목록 카드 스타일 --- */
+        .topic-card {
+            background-color: #1e1e1e;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .topic-card:hover {
+            transform: translateY(-3px);
+            border-color: #0055ff;
+            background-color: #252525;
+        }
+        .topic-info { text-align: left; }
+        .topic-date { font-size: 0.85rem; color: #888; margin-bottom: 5px; font-weight: bold;}
+        .topic-title { font-size: 1.2rem; font-weight: bold; color: white; }
+        .topic-desc { font-size: 0.9rem; color: #bbb; margin-top: 5px;}
+        .topic-icon { font-size: 2rem; margin-left: 15px; }
+        
+        /* 뒤로가기 버튼 */
+        .back-btn {
+            display: none; /* 게임 화면에서만 보임 */
+            position: absolute;
+            left: 20px; top: 30px;
+            background: rgba(0,0,0,0.3);
+            border: none; color: white; font-size: 1.5rem; cursor: pointer;
+            border-radius: 50%; width: 40px; height: 40px;
+        }
+
+        /* 기존 게임 카드 스타일 유지 */
         .game-card {
             background-color: #1e1e1e;
             border-radius: 16px;
@@ -32,12 +68,8 @@
             margin-bottom: 40px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             border: 1px solid #333;
-            transition: transform 0.2s;
         }
-        .game-card:hover { transform: translateY(-5px); border-color: #555; }
-
         .question-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 20px; color: #fff; text-align: left; border-left: 4px solid #ff0055; padding-left: 10px;}
-
         .vs-container { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 20px; }
         .option-box {
             flex: 1; background-color: #2c2c2c; border-radius: 12px;
@@ -48,7 +80,6 @@
             background-color: #333; display: flex; align-items: center; justify-content: center; font-size: 3rem;
         }
         .option-label { padding: 15px 5px; font-size: 0.95rem; font-weight: bold; line-height: 1.4; color: #ddd;}
-
         .btn-group { display: flex; gap: 10px; }
         .vote-btn {
             flex: 1; padding: 15px; border: none; border-radius: 10px;
@@ -57,9 +88,7 @@
         }
         .btn-a { background: #ff0055; }
         .btn-b { background: #0055ff; }
-        .vote-btn:active { transform: scale(0.95); }
         .vote-btn:disabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(100%); }
-
         .result-bar-container {
             margin-top: 20px; background-color: #333; border-radius: 50px;
             height: 30px; overflow: hidden; position: relative; display: none;
@@ -69,10 +98,12 @@
             position: absolute; width: 100%; height: 100%; display: flex; justify-content: space-between; align-items: center;
             padding: 0 15px; box-sizing: border-box; font-size: 0.85rem; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
-        
         .loading { color: #888; margin-top: 10px; display: none; }
 
-        footer { margin-top: 60px; padding-bottom: 40px; color: #666; font-size: 0.8rem; line-height: 1.6; }
+        /* 화면 전환용 유틸리티 */
+        .hidden { display: none !important; }
+        
+        footer { margin-top: 60px; padding-bottom: 40px; color: #666; font-size: 0.8rem; }
         .cta-box { background: #222; padding: 20px; border-radius: 10px; margin-top: 20px; }
         .cta-btn { background: white; color: black; padding: 10px 20px; border-radius: 20px; text-decoration: none; font-weight: bold; display: inline-block; margin-top: 10px;}
     </style>
@@ -80,29 +111,30 @@
 <body>
 
     <header>
-        <h1>⚖️ 극악의 밸런스 게임</h1>
-        <p class="subtitle">당신의 선택은 상위 몇 %일까요?</p>
+        <button class="back-btn" id="back-btn" onclick="goHome()">◀</button>
+        <h1 onclick="goHome()">⚖️ 밸런스 게임 천국</h1>
+        <p class="subtitle">오늘의 난제들을 해결해주세요!</p>
     </header>
 
-    <div class="container" id="quiz-container">
+    <div class="container" id="home-screen">
         </div>
 
-    <div class="container">
+    <div class="container hidden" id="game-screen">
+        <div id="questions-area">
+            </div>
+        
         <div class="cta-box">
-            <h3>매일 새로운 문제가 올라옵니다!</h3>
-            <p>유튜브 채널 구독하고 알림 받으세요</p>
-            <a href="YOUR_YOUTUBE_LINK" class="cta-btn">유튜브 구독하기 ▶</a>
+            <h3>재밌으셨나요?</h3>
+            <p>매일 새로운 주제가 올라옵니다!</p>
+            <a href="https://www.youtube.com/@ingongzineong" class="cta-btn">유튜브 구독하기 ▶</a>
         </div>
     </div>
 
     <footer>
-        <p>© 2024 AI Balance Game Project.<br>Designed for MVP Presentation.</p>
+        <p>© 2024 AI Balance Game Project.</p>
     </footer>
 
     <script type="module">
-        // -----------------------------------------------------------
-        // 1. Firebase 설정 (네가 발급받은 키를 여기에 넣어야 해!)
-        // -----------------------------------------------------------
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, doc, getDoc, updateDoc, increment, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -116,99 +148,172 @@
             measurementId: "G-N3G610NRDE"
         };
 
-        // Firebase 초기화 (키가 없으면 작동 안 함. 일단 가짜 DB로 작동하게 예외처리 해둠)
         let db;
         try {
             const app = initializeApp(firebaseConfig);
             db = getFirestore(app);
         } catch (e) {
-            console.log("Firebase 설정이 아직 안 되었습니다. 로컬 모드로 동작합니다.");
+            console.log("Firebase 로컬 모드");
         }
 
         // -----------------------------------------------------------
-        // 2. 문제 데이터 (6개로 확장)
+        // 1. 데이터 구조 변경: '주제(Topic)'별로 문제들을 묶었습니다.
         // -----------------------------------------------------------
-        const questions = [
-            { id: "q1", title: "Q1. 연애 스타일", a: "싸울 때마다 오열", b: "싸우면 연락두절", imgA: "😭", imgB: "🤐" },
-            { id: "q2", title: "Q2. 최악의 식사", a: "양념 없는 떡볶이", b: "국물 없는 국수", imgA: "⚪", imgB: "🌵" },
-            { id: "q3", title: "Q3. 다시 태어난다면", a: "극단적 마름(해골)", b: "극단적 뚱뚱(공)", imgA: "💀", imgB: "🎈" },
-            { id: "q4", title: "Q4. 육아 난이도", a: "5살 훈이 10명", b: "10살 짱구 1명", imgA: "👶", imgB: "👦" },
-            { id: "q5", title: "Q5. 위생 관념", a: "평생 양치 안 하기", b: "평생 샤워 안 하기", imgA: "🦷", imgB: "🚿" },
-            { id: "q6", title: "Q6. 초능력", a: "남 속마음 다 들림", b: "내 속마음 다 들킴", imgA: "👂", imgB: "📢" }
+        const gameData = [
+            {
+                id: "topic1",
+                date: "11월 25일",
+                title: "🔥 커플 논쟁 특집",
+                desc: "깻잎 논쟁보다 더 심각한 문제들",
+                icon: "💔",
+                questions: [
+                    { id: "q1", title: "Q1. 연애 스타일", a: "싸울 때마다 오열", b: "싸우면 연락두절", imgA: "😭", imgB: "🤐" },
+                    { id: "q6", title: "Q2. 초능력", a: "남 속마음 다 들림", b: "내 속마음 다 들킴", imgA: "👂", imgB: "📢" }
+                ]
+            },
+            {
+                id: "topic2",
+                date: "11월 24일",
+                title: "🍕 음식 밸런스 게임",
+                desc: "평생 하나만 먹어야 한다면?",
+                icon: "🍔",
+                questions: [
+                    { id: "q2", title: "Q1. 최악의 식사", a: "양념 없는 떡볶이", b: "국물 없는 국수", imgA: "⚪", imgB: "🌵" },
+                    { id: "q5", title: "Q2. 위생 관념", a: "평생 양치 안 하기", b: "평생 샤워 안 하기", imgA: "🦷", imgB: "🚿" }
+                ]
+            },
+            {
+                id: "topic3",
+                date: "11월 23일",
+                title: "👻 다시 태어난다면?",
+                desc: "극한의 상황, 당신의 선택은",
+                icon: "✨",
+                questions: [
+                    { id: "q3", title: "Q1. 신체 조건", a: "극단적 마름(해골)", b: "극단적 뚱뚱(공)", imgA: "💀", imgB: "🎈" },
+                    { id: "q4", title: "Q2. 육아 난이도", a: "5살 훈이 10명", b: "10살 짱구 1명", imgA: "👶", imgB: "👦" }
+                ]
+            }
         ];
 
-        // -----------------------------------------------------------
-        // 3. 화면 그리기 및 로직
-        // -----------------------------------------------------------
-        const container = document.getElementById('quiz-container');
+        const homeScreen = document.getElementById('home-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const questionsArea = document.getElementById('questions-area');
+        const backBtn = document.getElementById('back-btn');
 
-        // 초기 화면 렌더링
-        questions.forEach(q => {
-            const html = `
-                <div class="game-card" id="${q.id}">
-                    <div class="question-title">${q.title}</div>
-                    <div class="vs-container">
-                        <div class="option-box" onclick="handleVote('${q.id}', 'A')">
-                            <div class="option-img">${q.imgA}</div>
-                            <div class="option-label">${q.a}</div>
+        // -----------------------------------------------------------
+        // 2. 홈 화면 렌더링 (목록 만들기)
+        // -----------------------------------------------------------
+        function renderHome() {
+            homeScreen.innerHTML = ""; // 초기화
+            gameData.forEach(topic => {
+                const html = `
+                    <div class="topic-card" onclick="openGame('${topic.id}')">
+                        <div class="topic-info">
+                            <div class="topic-date">${topic.date}</div>
+                            <div class="topic-title">${topic.title}</div>
+                            <div class="topic-desc">${topic.desc}</div>
                         </div>
-                        <div class="option-box" onclick="handleVote('${q.id}', 'B')">
-                            <div class="option-img">${q.imgB}</div>
-                            <div class="option-label">${q.b}</div>
-                        </div>
+                        <div class="topic-icon">${topic.icon}</div>
                     </div>
-                    <div class="btn-group">
-                        <button class="vote-btn btn-a" id="btn-a-${q.id}" onclick="handleVote('${q.id}', 'A')">A 선택</button>
-                        <button class="vote-btn btn-b" id="btn-b-${q.id}" onclick="handleVote('${q.id}', 'B')">B 선택</button>
-                    </div>
-                    <div class="loading" id="load-${q.id}">투표 반영 중...</div>
-                    <div class="result-bar-container" id="result-${q.id}">
-                        <div class="bar-fill-a" id="bar-${q.id}"></div>
-                        <div class="bar-text">
-                            <span id="text-a-${q.id}">A: 0%</span>
-                            <span id="text-b-${q.id}">B: 0%</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-            container.innerHTML += html;
-        });
+                `;
+                homeScreen.innerHTML += html;
+            });
+        }
 
-        // 투표 처리 함수 (전역으로 만들기 위해 window에 할당)
+        // -----------------------------------------------------------
+        // 3. 게임 화면 진입 및 렌더링
+        // -----------------------------------------------------------
+        window.openGame = (topicId) => {
+            // 해당 토픽 데이터 찾기
+            const topic = gameData.find(t => t.id === topicId);
+            if (!topic) return;
+
+            // 화면 전환 (홈 숨기기, 게임 보이기)
+            homeScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            backBtn.style.display = "block"; // 뒤로가기 버튼 보이기
+
+            // 문제 렌더링
+            questionsArea.innerHTML = `<h2 style="margin-bottom:30px; color:#0055ff;">${topic.title}</h2>`;
+            
+            topic.questions.forEach(q => {
+                const html = `
+                    <div class="game-card" id="${q.id}">
+                        <div class="question-title">${q.title}</div>
+                        <div class="vs-container">
+                            <div class="option-box" onclick="handleVote('${q.id}', 'A')">
+                                <div class="option-img">${q.imgA}</div>
+                                <div class="option-label">${q.a}</div>
+                            </div>
+                            <div class="option-box" onclick="handleVote('${q.id}', 'B')">
+                                <div class="option-img">${q.imgB}</div>
+                                <div class="option-label">${q.b}</div>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="vote-btn btn-a" id="btn-a-${q.id}" onclick="handleVote('${q.id}', 'A')">A 선택</button>
+                            <button class="vote-btn btn-b" id="btn-b-${q.id}" onclick="handleVote('${q.id}', 'B')">B 선택</button>
+                        </div>
+                        <div class="loading" id="load-${q.id}">투표 반영 중...</div>
+                        <div class="result-bar-container" id="result-${q.id}">
+                            <div class="bar-fill-a" id="bar-${q.id}"></div>
+                            <div class="bar-text">
+                                <span id="text-a-${q.id}">A: 0%</span>
+                                <span id="text-b-${q.id}">B: 0%</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                questionsArea.innerHTML += html;
+            });
+
+            // 맨 위로 스크롤
+            window.scrollTo(0, 0);
+        };
+
+        // -----------------------------------------------------------
+        // 4. 뒤로 가기 (홈으로)
+        // -----------------------------------------------------------
+        window.goHome = () => {
+            gameScreen.classList.add('hidden');
+            homeScreen.classList.remove('hidden');
+            backBtn.style.display = "none";
+            window.scrollTo(0, 0);
+        };
+
+        // 초기 실행
+        renderHome();
+
+        // -----------------------------------------------------------
+        // 5. 투표 로직 (기존과 동일)
+        // -----------------------------------------------------------
         window.handleVote = async (qId, choice) => {
-            // 버튼 비활성화
-            document.getElementById(`btn-a-${qId}`).disabled = true;
-            document.getElementById(`btn-b-${qId}`).disabled = true;
+            const btnA = document.getElementById(`btn-a-${qId}`);
+            const btnB = document.getElementById(`btn-b-${qId}`);
+            if(btnA.disabled) return; // 이미 투표했으면 중복 방지
+
+            btnA.disabled = true;
+            btnB.disabled = true;
             document.getElementById(`load-${qId}`).style.display = "block";
 
-            // 1. Firebase가 설정되어 있으면 실제 DB 업데이트
             if (db) {
                 const docRef = doc(db, "polls", qId);
                 try {
-                    // 문서가 있는지 확인하고 없으면 생성
                     const docSnap = await getDoc(docRef);
                     if (!docSnap.exists()) {
-                        await setDoc(docRef, { A: 10, B: 10 }); // 초기값 (0이면 썰렁하니까)
+                        await setDoc(docRef, { A: 10, B: 10 });
                     }
-
-                    // 투표수 증가 (+1)
-                    await updateDoc(docRef, {
-                        [choice]: increment(1)
-                    });
-
-                    // 최신 데이터 가져오기
+                    await updateDoc(docRef, { [choice]: increment(1) });
                     const updatedSnap = await getDoc(docRef);
                     const data = updatedSnap.data();
                     showResult(qId, data.A, data.B);
-
                 } catch (error) {
                     console.error("Error:", error);
-                    alert("투표 오류! (Firebase 설정을 확인하세요)");
+                    alert("오류 발생");
                 }
             } else {
-                // Firebase 없으면 가짜 동작 (MVP 시연용)
+                // 로컬 테스트용 가짜 결과
                 setTimeout(() => {
-                    // 랜덤한 값으로 결과 보여주기
                     const fakeA = Math.floor(Math.random() * 500) + 50;
                     const fakeB = Math.floor(Math.random() * 500) + 50;
                     showResult(qId, fakeA + (choice==='A'?1:0), fakeB + (choice==='B'?1:0));
